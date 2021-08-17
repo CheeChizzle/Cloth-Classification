@@ -1,6 +1,6 @@
 # imports
 from argparse import ArgumentParser
-from network import SingleViewNet, MultiViewNet, seed_all, loss_func
+from network import SingleViewNet, MultiViewNet, ResNetModel, seed_all, loss_func
 from loader import ClothDataset
 import torch
 # import numpy as np
@@ -13,7 +13,8 @@ from tqdm import tqdm
 import os
 networks ={
     'singleviewnet': SingleViewNet,
-    'multiviewnet': MultiViewNet
+    'multiviewnet': MultiViewNet,
+    'singleviewnetresnet': ResNetModel
 }
 
 parser = ArgumentParser()
@@ -33,7 +34,10 @@ os.mkdir(args.logdir)
 # setting up
 seed_all(args.seed)
 
-net = networks[args.arch]().cuda()
+if args.arch != "resnet":
+    net = networks[args.arch]().cuda()
+else:
+    net = networks[args.arch].cuda()
 
 
 opt = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -49,6 +53,9 @@ if args.load_ckpt is not None:
     ckpt = torch.load(args.load_ckpt)
     net.load_state_dict(ckpt['network'])
     opt.laod_state_dict(ckpt['optimizer'])
+ 
+ #
+
 start = time()
 for epoch in range(args.epochs):
     # B C W H (4 dimension)

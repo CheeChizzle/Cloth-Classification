@@ -1,3 +1,4 @@
+from typing import ForwardRef
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -68,3 +69,21 @@ class MultiViewNet(nn.Module):
         return score
 
 loss_func = nn.CrossEntropyLoss()
+
+
+class SingleViewResNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        temporary_model = torchvision.models.resnet50(pretrained=True)
+        layers = list(temporary_model.children())
+        layers = layers[:-1]
+        shape = layers[-1].shape[1]
+        self.net = nn.Sequential(
+            *layers,
+            nn.Linear(shape, 6)
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+# class MultiViewResNet(nn.Module):
