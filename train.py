@@ -57,7 +57,9 @@ if args.load_ckpt is not None:
  #
 
 start = time()
+max_ckpt_accuracy = 0
 for epoch in range(args.epochs):
+   
     # B C W H (4 dimension)
     # B V C W H (5 dimension)
 
@@ -104,7 +106,7 @@ for epoch in range(args.epochs):
 
 
     # training
-    running_loss = 0.0
+    training_loss = 0.0
     for i, (rgb, depth, mask, label) in enumerate(tqdm(trainloader, total=len(trainloader), smoothing=0.01, dynamic_ncols=True)):
         # multiview: B x 4 x 3 x W x H
         # B x 3 x W x H
@@ -118,11 +120,11 @@ for epoch in range(args.epochs):
         opt.step()
 
         # print statistics every once in a while
-        running_loss += loss.item()
-        if i % 2000 == 1999:
+        training_loss += loss.item()
+        if i % 200 == 199:
             print('[EPOCH %d, BATCH %5d] LOSS: %.3f' %
-                  (epoch + 1, i + 1, running_loss / 2000))
-            running_loss = 0.0
+                  (epoch + 1, i + 1, training_loss / 200))
+            training_loss = 0.0
     
     # testing
     test_loss = 0
@@ -144,11 +146,15 @@ for epoch in range(args.epochs):
         test_loss, correct, len(testloader.dataset),
         100. * correct / len(testloader.dataset)))
     
-    # save the network
-    torch.save({
-        'network': net.state_dict(),
-        'optimizer': opt.state_dict()
-    },f'{args.logdir}/ckpt_{epoch}.pth')
+    current_ckpt_accuracy = 100. * correct / len(testloader.dataset)
+    
+    if current_ckpt_accuracy > max_ckpt_accuracy:
+        max_ckpt_accuracy = current_ckpt_accuracy
+        # save the network
+        torch.save({
+            'network': net.state_dict(),
+            'optimizer': opt.state_dict()
+        },f'{args.logdir}/ckpt_{epoch}.pth')
 
 
 finish = time()
