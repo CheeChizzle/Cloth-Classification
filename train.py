@@ -1,6 +1,6 @@
 # imports
 from argparse import ArgumentParser
-from network import SingleViewNet, MultiViewNet, ResNetModel, seed_all, loss_func
+from network import SingleViewNet, MultiViewNet, SingleViewResNet, MultiViewResNet, seed_all, loss_func
 from loader import ClothDataset
 import torch
 # import numpy as np
@@ -14,7 +14,8 @@ import os
 networks ={
     'singleviewnet': SingleViewNet,
     'multiviewnet': MultiViewNet,
-    'singleviewnetresnet': ResNetModel
+    'singleviewnetresnet': SingleViewResNet,
+    'multiviewnetresnet': MultiViewResNet
 }
 
 parser = ArgumentParser()
@@ -22,7 +23,7 @@ parser.add_argument('--logdir', type=str, required=True)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--weight_decay', type=float, default=0)
-parser.add_argument('--epochs', type=int, default=20)
+parser.add_argument('--epochs', type=int, default=12)
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--num_workers', type=int, default=8)
 parser.add_argument('--use_single_view', action='store_true') # store_truemakes use_single_view automatically false
@@ -34,10 +35,7 @@ os.mkdir(args.logdir)
 # setting up
 seed_all(args.seed)
 
-if args.arch != "resnet":
-    net = networks[args.arch]().cuda()
-else:
-    net = networks[args.arch].cuda()
+net = networks[args.arch]().cuda()
 
 
 opt = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -158,4 +156,4 @@ for epoch in range(args.epochs):
 
 
 finish = time()
-print('computation took ', float(finish - start), ' seconds')
+print('Computation took ', float(finish - start), ' seconds')
