@@ -23,13 +23,12 @@ trainset = ClothDataset(64, keys="train.pkl", use_single_view=True)
 
 # print(rgb.max(),rgb.min(),rgb.max())
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=2,
-                                        shuffle=True)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=True)
 
 for batch in trainloader:
     rgb, depth, mask, label = batch
     print(rgb.shape)
-exit()
+# exit()
 # turning trainloader into iterable object
 dataiter = iter(trainloader)
 
