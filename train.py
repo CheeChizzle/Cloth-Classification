@@ -11,6 +11,8 @@ from threading import Thread
 from time import time
 from tqdm import tqdm
 import os
+
+# values correspond to name of network class. key will be used to access them 
 networks ={
     'singleviewnet': SingleViewNet,
     'multiviewnet': MultiViewNet,
@@ -18,24 +20,30 @@ networks ={
     'multiviewnetresnet': MultiViewResNet
 }
 
+# creates arguments 
 parser = ArgumentParser()
 parser.add_argument('--logdir', type=str, required=True)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--weight_decay', type=float, default=0)
-parser.add_argument('--epochs', type=int, default=12)
+parser.add_argument('--epochs', type=int, default=11)
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--num_workers', type=int, default=8)
 parser.add_argument('--use_single_view', action='store_true') # store_truemakes use_single_view automatically false
 parser.add_argument('--load_ckpt',type=str,default=None) # for saving network
 parser.add_argument('--arch', choices=list(networks.keys()), default='singleviewnet')
+# add freeze resnet parameter
+parser.add_argument('--freeze_resnet', action='store_true')
 
 args = parser.parse_args()
 os.mkdir(args.logdir)
 # setting up
 seed_all(args.seed)
 
-net = networks[args.arch]().cuda()
+if args.arch == "singleviewnetresnet" or args.arch == "multiviewnetresnet":
+    net = networks[args.arch](freeze_layers = args.freeze_resnet).cuda()
+else:
+    net = networks[args.arch]().cuda()
 
 
 opt = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -51,12 +59,11 @@ if args.load_ckpt is not None:
     ckpt = torch.load(args.load_ckpt)
     net.load_state_dict(ckpt['network'])
     opt.laod_state_dict(ckpt['optimizer'])
- 
- #
 
 start = time()
 max_ckpt_accuracy = 0
 for epoch in range(args.epochs):
+    print("Experiment:", args.logdir, "Epoch #:", epoch+1)
    
     # B C W H (4 dimension)
     # B V C W H (5 dimension)
@@ -105,41 +112,63 @@ for epoch in range(args.epochs):
 
     # training
     training_loss = 0.0
+    net.train()
     for i, (rgb, depth, mask, label) in enumerate(tqdm(trainloader, total=len(trainloader), smoothing=0.01, dynamic_ncols=True)):
         # multiview: B x 4 x 3 x W x H
         # B x 3 x W x H
         #rgb = torch.tensor(rgb).to(dtype = torch.float)
         # rgb = rgb[0,:,:,:,:]
+        
+        # print min, max, and mean of batch of rgb images
         opt.zero_grad()
         output = net(rgb.cuda())
         loss = loss_func(output, label.cuda())
 
         loss.backward()
+
+        # gradient clipping
+        # lower rate
+        # research other experiences/techniques with resnet50
+        # Check gradient norm
+        # list of gradient norms
+        grad_norms = []
+        for p in list(filter(lambda p: p.grad is not None, net.parameters())):
+            grad_norms.append(p.grad.detach().data.norm(2))
+        # print min, mean, and max of gradient norm list
+        # if len(grad_norms) != 0:
+        print("GRADIENT NORM STATS | Min:", min(grad_norms), "Mean:", (sum(grad_norms)/len(grad_norms)), "Max:", max(grad_norms))
+
+        # print(grad_norms)
+
         opt.step()
 
         # print statistics every once in a while
         training_loss += loss.item()
-        if i % 200 == 199:
-            print('[EPOCH %d, BATCH %5d] LOSS: %.3f' %
-                  (epoch + 1, i + 1, training_loss / 200))
-            training_loss = 0.0
+        # if i % 200 == 199:
+        #     print('[EPOCH %d, BATCH %5d] LOSS: %.3f' %
+        #           (epoch + 1, i + 1, training_loss / 200))
+        #     
+        #     training_loss = 0.0
+    print("Train set: Average training loss:", training_loss/(len(trainloader)/args.batch_size))
+    
     
     # testing
     test_loss = 0
     correct = 0
-    for batch in testloader:
-        # taking first datapoint in trainloader iterable object
-        rgb, depth, mask, label = batch
+    with torch.no_grad():
+        for batch in testloader:
+            # taking first datapoint in trainloader iterable object
+            rgb, depth, mask, label = batch
 
-        rgb, label = rgb.cuda(), label.cuda()
+            rgb, label = rgb.cuda(), label.cuda()
 
-        output = net(rgb) # perform a forward pass to get the network's predictions
-        test_loss += loss_func(output, label)
-        _, predicted = torch.max(output.data, 1)
+            output = net(rgb) # perform a forward pass to get the network's predictions
+            test_loss += loss_func(output, label)
+            _, predicted = torch.max(output.data, 1)
 
-        correct += predicted.eq(label.data.view_as(predicted)).long().cpu().sum()
+            correct += predicted.eq(label.data.view_as(predicted)).long().cpu().sum()
     
-    test_loss /= len(testloader.dataset)
+    test_loss /= (len(testloader.dataset)/args.batch_size)
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         test_loss, correct, len(testloader.dataset),
         100. * correct / len(testloader.dataset)))
