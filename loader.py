@@ -1,12 +1,16 @@
 import torch
 from torch.utils.data import Dataset
 from torchvision.transforms import Resize
+import torchvision.transforms as transforms
 import torchvision
 import zarr
 import pickle
 
+transform = transforms.Compose(
+    [transforms.ToTensor()])
+
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True)
+                                        download=True, transform = transform)
 
 class ClothDataset(Dataset):
     classes = ['Dress', 'Jumpsuit', 'Skirt', 'Top', 'Trousers', 'Tshirt'] # list of classes/labels (y value, ground truth)
