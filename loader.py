@@ -25,8 +25,8 @@ class ClothDataset(Dataset):
 
         # calculating standardizaiton, equation is ((value - mean)/standard deviation)
         # after converging, we find that the mean and standard deviation of all rgb values are 53 and 45
-        self.rgb_mean = 53
-        self.rgb_std = 45
+        # self.rgb_mean = 53
+        # self.rgb_std = 45
         # self.depth_mean = 0
         # rgbs = []
         # masks = []
@@ -48,7 +48,7 @@ class ClothDataset(Dataset):
         #self.depth_mean =  torch.mean(torch.stack(depths))
         #self.rgb_std = torch.std(torch.stack(rgbs))
         #self.depth_std = torch.std(torch.stack(depths))
-        print(self.rgb_mean, self.rgb_std)
+        # print(self.rgb_mean, self.rgb_std)
         #print(self.depth_mean, self.depth_std)
 
         # creating a resize class to resize any given category to the specified resolution (when an instance of the class is created)
@@ -79,26 +79,26 @@ class ClothDataset(Dataset):
                 mask = torch.tensor(z['mask'][:]).bool()
                 mask[(mask == float('inf'))] = -1 #getting rid of infinity values
                 
+                # loading in background image to be used for mask
                 img, _ = trainset[idx] # img shape: 3 x 32 x 32
                 img = self.resize(img)  # img shape: 3 x 64 x 64
                 
 
-                # implementing standardization function with mean and standard deviation variables
-                rgb_normalized = (rgb-self.rgb_mean)/self.rgb_std
+                
                 # depth_normalized = (depth-self.depth_mean)/self.depth_std
 
                 # if the flag that indicates using single view is true,
                 if self.use_single_view:
-                    rgb_normalized = rgb_normalized[0,:,:,:] # select one image view in the tensor. shape becomes: 1024 x 1024 x 3
+                    rgb = rgb[0,:,:,:] # select one image view in the tensor. shape becomes: 1024 x 1024 x 3
                     # depth_normalized = depth_normalized[0,:,:,:]
 
                     # change the locations of the dimensions in rgb and resize to resolution size. shape becomes: 3 x 64 x 64
-                    rgb_normalized = self.resize(rgb_normalized.permute(2,0,1)) 
+                    rgb = self.resize(rgb.permute(2,0,1)) 
 
                     # in mask, background is True and cloth is False
                     # in order to flip order, mask = 1-mask can be used
                     # rgb, img, and mask shape: 3 x 64 x 64
-                    # rgb[mask] = img[mask]
+                    rgb[mask] = img[mask]
 
                     
                     
@@ -113,12 +113,22 @@ class ClothDataset(Dataset):
                 else: # if multi view is being used (single view is false)
                     
                     # change the locations of the dimensions in rgb and resize to resolution size. shape becomes:  4 x 3 x 64 x 64
-                    rgb_normalized = self.resize(rgb_normalized.permute(0,3, 1, 2))
+                    rgb = self.resize(rgb.permute(0,3, 1, 2))
                     # depth_normalized = self.resize(depth_normalized.permute(0,3, 1, 2))
+
+                    # applying the CFAIR-10 image as background in each image view
+                    for view in range(4):
+                        rgb = rgb[view,:,:,:] # shape is now: 3 x 64 x 64
+                        rgb[mask] = img[mask]
+                        
                 
+                # implementing standardization with mean and standard deviation variables
+                rgb_standardized = (rgb-torch.mean(rgb))/torch.std(rgb)
+
+
                 # resized image is now added to the cache_list (dictionary) as a value with the index being its key
-                self.cache_list[str(idx)] = rgb_normalized 
-                
+                self.cache_list[str(idx)] = rgb_standardized 
+              
             
         return self.cache_list[str(idx)], dict(), dict(), self.classes.index(category)
         # return rgb_normalized, depth_normalized, mask, self.classes.index(category)
