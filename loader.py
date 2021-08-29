@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 import torchvision
 import zarr
 import pickle
+import random
 
 transform = transforms.Compose(
     [transforms.ToTensor()])
@@ -12,14 +13,18 @@ transform = transforms.Compose(
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                         download=True, transform = transform)
 
+
 class ClothDataset(Dataset):
     classes = ['Dress', 'Jumpsuit', 'Skirt', 'Top', 'Trousers', 'Tshirt'] # list of classes/labels (y value, ground truth)
-    def __init__(self, resolution, zarr_file='garmentnets_images.zarr', keys='train.pkl', use_single_view=False): # constructor which allows paramters to be passed through when an instance of the class is made
+    def __init__(self, resolution, zarr_file='garmentnets_images.zarr', keys='train.pkl', use_single_view=False, domain_randomization = False): # constructor which allows paramters to be passed through when an instance of the class is made
+        # TODO: Add flag for domain randomization
         # instance variables for image resolution, the actual zarr file, the flag to indicate the use of single view, and the cache list
         self.resolution = resolution
         self.zarr_file = zarr_file
         self.use_single_view = use_single_view
         self.cache_list = {}
+        self.domain_randomization = domain_randomization
+        
 
         # using pickle to load file in as keys
         with open(keys, 'rb') as file:      
@@ -61,10 +66,16 @@ class ClothDataset(Dataset):
     # this function acts as the len() function. it returns what len would return if it were called on an instance of this class
     def __len__(self):
         return len(self.keys)
-
+    
+    def get_random_img(self):
+        rand_idx = random.randrange(len(trainset))
+        # loading in background image to be used for mask
+        img, _ = trainset[rand_idx] # img shape: 3 x 32 x 32 
+        img = self.resize(img)  # img shape: 3 x 64 x 64
+        return img
+    
     # implements what should happen when you access an index from an instance of the ClothDataset class
     def __getitem__(self, idx):
-
         # the keys variable is a list. each value in keys contains a tuple of a category (eg dress) and an instance (name of file that contains the actual image)
         category, instance = self.keys[idx]
         # conditional statement to use cache. purpose is to make running faster/less expensive by resizing image only once (not each time training is run)
@@ -83,12 +94,7 @@ class ClothDataset(Dataset):
                 mask = torch.tensor(z['mask'][:]).bool()
                 mask[(mask == float('inf'))] = -1 #getting rid of infinity values
                 
-                # loading in background image to be used for mask
-                img, _ = trainset[idx] # img shape: 3 x 32 x 32
-                img = self.resize(img)  # img shape: 3 x 64 x 64
-                
 
-                
                 # depth_normalized = (depth-self.depth_mean)/self.depth_std
 
                 # if the flag that indicates using single view is true,
@@ -99,10 +105,12 @@ class ClothDataset(Dataset):
                     # change the locations of the dimensions in rgb and resize to resolution size. shape becomes: 3 x 64 x 64
                     rgb = self.resize(rgb.permute(2,0,1)) 
 
-                    # in mask, background is True and cloth is False
-                    # in order to flip order, mask = 1-mask can be used
-                    # rgb, img, and mask shape: 3 x 64 x 64
-                    rgb[mask] = img[mask]
+                    if self.domain_randomization:
+                        img = self.get_random_img()
+                        # in mask, background is True and cloth is False
+                        # in order to flip order, mask = 1-mask can be used
+                        # rgb, img, and mask shape: 3 x 64 x 64
+                        rgb[mask] = img[mask] # TODO: Visualize images with CFAIR10
 
                     
                     
@@ -120,10 +128,12 @@ class ClothDataset(Dataset):
                     rgb = self.resize(rgb.permute(0,3, 1, 2))
                     # depth_normalized = self.resize(depth_normalized.permute(0,3, 1, 2))
 
-                    # applying the CFAIR-10 image as background in each image view
-                    for view in range(4):
-                        rgb = rgb[view,:,:,:] # shape is now: 3 x 64 x 64
-                        rgb[mask] = img[mask]
+                    if self.domain_randomization:
+                        # applying the CFAIR-10 image as background in each image view
+                        for view in range(4): # TODO: Sample random image function and use different backround for each view
+                            rgb = rgb[view,:,:,:] # shape is now: 3 x 64 x 64
+                            img = self.get_random_img()
+                            rgb[mask] = img[mask]
                         
                 
                 # implementing standardization with mean and standard deviation variables

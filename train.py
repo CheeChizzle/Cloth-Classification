@@ -11,7 +11,8 @@ from threading import Thread
 from time import time
 from tqdm import tqdm
 import os
-
+# TODO: check cache of dataloaders. if exceeds a certain amount, stop loading in data and continue with training/testing
+# TODO: evaluate.py file, similar but takes in a checkpoint and returns confidence, accuracy, loss, (on both training and testing set) and visualze (in notebook) image instances of network with highest loss and image instances of network with lowest loss
 # values correspond to name of network class. key will be used to access them 
 networks ={
     'singleviewnet': SingleViewNet,
@@ -24,12 +25,14 @@ networks ={
 parser = ArgumentParser()
 parser.add_argument('--logdir', type=str, required=True)
 parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--img_resolution', type=int, default=64)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--weight_decay', type=float, default=0)
 parser.add_argument('--epochs', type=int, default=11)
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--num_workers', type=int, default=8)
 parser.add_argument('--use_single_view', action='store_true') # store_truemakes use_single_view automatically false
+parser.add_argument('--use_domain_randomization', action='store_true')
 parser.add_argument('--load_ckpt',type=str,default=None) # for saving network
 parser.add_argument('--arch', choices=list(networks.keys()), default='singleviewnet')
 # add freeze resnet parameter
@@ -48,8 +51,8 @@ else:
 
 opt = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-trainset = ClothDataset(64, keys="train.pkl", use_single_view=args.use_single_view)
-testset = ClothDataset(64, keys="test.pkl", use_single_view=args.use_single_view)
+trainset = ClothDataset(args.img_resolution, keys="train.pkl", use_single_view=args.use_single_view, domain_randomization=args.use_domain_randomization)
+testset = ClothDataset(args.img_resolution, keys="test.pkl", use_single_view=args.use_single_view, domain_randomization=args.use_domain_randomization)
 
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True,  num_workers=args.num_workers)
 testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True,  num_workers=args.num_workers)
@@ -109,6 +112,16 @@ for epoch in range(args.epochs):
 
     # Output: B K
 
+    #TODO: Research tensorboard
+    # pip install tensorboardX
+    # from tensorboardX import SummaryWriter
+    # logger = SummaryWriter(args.logdir)
+    # logger.add_scalar('gradnorm', gradnorm.item(), step)
+    # step += 1
+    # ssh -L 2134:127.0.0.1:2134 chichi@128...
+    # tensorboard --logdir <expdir> --port 2134 --host 0.0.0.0
+    # localhost:2134
+
 
     # training
     training_loss = 0.0
@@ -126,8 +139,6 @@ for epoch in range(args.epochs):
 
         loss.backward()
 
-        # gradient clipping
-        # lower rate
         # research other experiences/techniques with resnet50
         # Check gradient norm
         # list of gradient norms
@@ -149,7 +160,7 @@ for epoch in range(args.epochs):
         #           (epoch + 1, i + 1, training_loss / 200))
         #     
         #     training_loss = 0.0
-    print("Train set: Average training loss:", training_loss/(len(trainloader)/args.batch_size))
+    print("Train set: Average training loss:", training_loss/len(trainloader))
     
     
     # testing
