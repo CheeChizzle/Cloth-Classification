@@ -94,7 +94,6 @@ class ClothDataset(Dataset):
                 mask = torch.tensor(z['mask'][:]).bool()
                 mask[(mask == float('inf'))] = -1 #getting rid of infinity values
                 
-
                 # depth_normalized = (depth-self.depth_mean)/self.depth_std
 
                 # if the flag that indicates using single view is true,
