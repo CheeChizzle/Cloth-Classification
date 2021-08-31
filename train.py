@@ -1,4 +1,5 @@
 # imports
+import evaluate
 from argparse import ArgumentParser
 from network import SingleViewNet, MultiViewNet, SingleViewResNet, MultiViewResNet, seed_all, loss_func
 from loader import ClothDataset
@@ -10,7 +11,7 @@ import torch.nn.functional as F
 from threading import Thread
 from time import time
 from tqdm import tqdm
-import os
+import os 
 # TODO: check cache of dataloaders. if exceeds a certain amount, stop loading in data and continue with training/testing
 # TODO: evaluate.py file, similar but takes in a checkpoint and returns confidence, accuracy, loss, (on both training and testing set) and visualze (in notebook) image instances of network with highest loss and image instances of network with lowest loss
 # values correspond to name of network class. key will be used to access them 
