@@ -10,10 +10,12 @@ import random
 transform = transforms.Compose(
     [transforms.ToTensor()])
 
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True, transform = transform)
+trainset = torchvision.datasets.CIFAR10(root='./data', train = False,
+                                        download=False, transform = transform)
 
-
+# img, target = trainset[0]
+# print(img, target)
+# exit()
 class ClothDataset(Dataset):
     classes = ['Dress', 'Jumpsuit', 'Skirt', 'Top', 'Trousers', 'Tshirt'] # list of classes/labels (y value, ground truth)
     def __init__(self, resolution, zarr_file='garmentnets_images.zarr', keys='train.pkl', use_single_view=False, domain_randomization = False): # constructor which allows paramters to be passed through when an instance of the class is made
@@ -84,7 +86,7 @@ class ClothDataset(Dataset):
         rand_idx = random.randrange(len(trainset))
         # loading in background image to be used for mask
         img, _ = trainset[rand_idx] # img shape: 3 x 32 x 32 
-        img = self.resize(img)  # img shape: 3 x 256 x 256
+        img = self.resize(img) # img shape: 3 x 256 x 256 
         return img
     
     # implements what should happen when you access an index from an instance of the ClothDataset class
@@ -168,7 +170,7 @@ class ClothDataset(Dataset):
                 self.cache_list[str(idx)] = rgb_standardized 
               
             
-        return self.cache_list[str(idx)], dict(), dict(), self.classes.index(category)
+        return (self.cache_list[str(idx)]), dict(), dict(), self.classes.index(category)
         # return rgb_normalized, depth_normalized, mask, self.classes.index(category)
 
 # resources

@@ -134,6 +134,15 @@ class MultiViewResNet(nn.Module):
         # scores.shape  == B K
         return score
 
+# net = load_net()
+# scores = [net(view) for view in views]
+# maj voting or score adding
+# 1 sv model for multiview classification
+
+# my_emsemble = [load_net(net_path) for net_path in net_paths]
+# scores = [net(img) for net in my_ensemble]
+# multiple sv models for singleview classification
+
 
 # class SingleViewRGBD(nn.Module):
 #     def __init__(self):
