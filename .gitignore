@@ -134,5 +134,7 @@ dmypy.json
 
 *.pkl
 
+*.crvdesktop00
+
 data/
 data/
