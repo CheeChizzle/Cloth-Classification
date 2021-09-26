@@ -4,46 +4,53 @@ import torchvision
 import numpy as np
 import random
 from network import seed_all, loss_func
+# from statistics import mode
+from tensorboardX import SummaryWriter
 
-def ensemble_learning_run(checkpoint, net_type, num_of_nets, testloader):
+testing_step = 0
+def evaluate(net_type, num_of_nets, testloader, logger):
 
 
     networks = []
     for i in range(num_of_nets):
         seed_all(i+1)
-
-        ckpt = torch.load(checkpoint)
         
-        new_net = net_type.load_state_dict(ckpt['network']).cuda()
-        opt = opt.load_state_dict(ckpt['optimizer'])
+        new_net = net_type
+        new_net = new_net.cuda()
+        networks.append(new_net)
     
-    ensemble_learning_evaluate(networks, testloader)
+    ensemble_learning_evaluate(networks, testloader, logger)
     
     
 
-def ensemble_learning_evaluate(networks, testloader):
+def ensemble_learning_evaluate(networks, testloader, logger):
+    testing_step = 0
     test_loss = 0
     correct = 0
     with torch.no_grad():
         for batch in testloader:
             rgb, depth, mask, label = batch
             rgb, label = rgb.cuda(), label.cuda()
-            # for net in networks:
+            votes = []
+            for net in networks:
+                output = net(rgb)
+                
+                max, max_index = torch.max(output.data, 1)
+                votes.append(max_index)
 
-            scores = [net(rgb) for net in networks]
+            num = len(np.unique(votes))
+            if num == len(votes):
+                predicted =  random.choice(votes)
+            predicted = torch.mode(torch.tensor(votes))[0]
 
-            votes = [torch.max(score.data, 1) for max, score in scores]
-
-        num = len(np.unique(votes))
-        if num == len(votes):
-            predicted =  random.choice(votes)
-        predicted = torch.mode(torch.tensor(votes))[0]
-
-        if predicted == label:
-                correct += 1
+            test_loss += loss_func(predicted, label)
+            if predicted == label:
+                    correct += 1
+            logger.add_scalar("num_correct", correct, testing_step)
+            testing_step+=1
     
-    accuracy = correct/len(testloader.dataset)
+    accuracy = 100. * correct/len(testloader.dataset)
+
     
-         
-    # multiple sv models for singleview classification
-    return confidence, accuracy, loss
+    return None, accuracy, test_loss, correct
+

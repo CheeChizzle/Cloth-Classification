@@ -13,6 +13,7 @@ from time import time
 from tqdm import tqdm
 import os 
 from tensorboardX import SummaryWriter
+from evaluate import evaluate
  
 # TODO: evaluate.py file, similar but takes in a checkpoint and returns confidence, accuracy, loss, (on both training and testing set)
 # TODO: visualze (in notebook) image instances of network with highest loss and image instances of network with lowest loss
@@ -40,6 +41,7 @@ parser.add_argument('--load_ckpt',type=str,default=None) # for saving network
 parser.add_argument('--arch', choices=list(networks.keys()), default='singleviewnet')
 # add freeze resnet parameter
 parser.add_argument('--freeze_resnet', action='store_true')
+parser.add_argument('--num_networks', type=int, default=1)
 
 args = parser.parse_args()
 os.mkdir(args.logdir)
@@ -70,9 +72,9 @@ start = time()
 max_ckpt_accuracy = 0
 training_step = 0
 epoch_step = 0
-testing_step = 0
+
 for epoch in range(args.epochs):
-    print("Experiment:", args.logdir, "Epoch #:", epoch+1)
+    # print("Experiment:", args.logdir, "Epoch #:", epoch+1)
    
     # B C W H (4 dimension)
     # B V C W H (5 dimension)
@@ -127,9 +129,9 @@ for epoch in range(args.epochs):
     
     logger = SummaryWriter(args.logdir)
     
-    # ssh -L 2134:127.0.0.1:2134 chichi@160.39.151.212
-    # tensorboard --logdir <expdir> --port 2134 --host 0.0.0.0
-    # localhost:2134
+    # ssh -L 6002:127.0.0.1:6002 chichi@128.59.23.32
+    # tensorboard --logdir <expdir> --port 6002 --host 0.0.0.0
+    # localhost:6002
 
     if args.load_ckpt is None:
         # training
@@ -157,7 +159,7 @@ for epoch in range(args.epochs):
                 grad_norms.append(p.grad.detach().data.norm(2).cpu())
             # print min, mean, and max of gradient norm list
             # if len(grad_norms) != 0:
-            print("GRADIENT NORM STATS | Min:", min(grad_norms), "Mean:", (sum(grad_norms)/len(grad_norms)), "Max:", max(grad_norms))
+            # print("GRADIENT NORM STATS | Min:", min(grad_norms), "Mean:", (sum(grad_norms)/len(grad_norms)), "Max:", max(grad_norms))
 
             logger.add_scalar('mean_gradnorm', (sum(grad_norms)/len(grad_norms)), training_step)
             logger.add_histogram('gradnorms', grad_norms, training_step)
@@ -188,24 +190,7 @@ for epoch in range(args.epochs):
         
     
     
-    # testing
-    test_loss = 0
-    correct = 0
-    with torch.no_grad():
-        for batch in testloader:
-            # taking first datapoint in trainloader iterable object
-            rgb, depth, mask, label = batch
-
-            rgb, label = rgb.cuda(), label.cuda()
-
-            output = net(rgb) # perform a forward pass to get the network's predictions
-            test_loss += loss_func(output, label)
-            _, predicted = torch.max(output.data, 1)
-
-            correct += predicted.eq(label.data.view_as(predicted)).long().cpu().sum()
-            logger.add_scalar("num_correct", correct, testing_step)
-            testing_step+=1
-    
+    confidence, accuracy, test_loss, correct = evaluate(net, args.num_networks, testloader, logger)   
     test_loss /= (len(testloader.dataset)/args.batch_size)
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         test_loss, correct, len(testloader.dataset),

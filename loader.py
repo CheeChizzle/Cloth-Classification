@@ -122,7 +122,7 @@ class ClothDataset(Dataset):
                     rgb = rgb[0,:,:,:] # select one image view in the tensor. shape becomes: 1024 x 1024 x 3
 
                     # change the locations of the dimensions in rgb and resize to resolution size. shape becomes: 3 x 256 x 256
-                    rgb = self.resize(rgb.permute(2,0,1))
+                    rgb = self.resize(rgb.permute(2,0,1)[...,20:-30, 20:-20])
 
                     if self.domain_randomization:
                         mask = mask[0,:,:] # select one image view in the tensor. shape becomes: 256 x 256
@@ -147,7 +147,7 @@ class ClothDataset(Dataset):
                 else: # if multi view is being used (use_single_view is false)
                     
                     # change the locations of the dimensions in rgb and resize to resolution size. shape becomes:  4 x 3 x 256 x 256
-                    rgb = self.resize(rgb.permute(0,3, 1, 2))
+                    rgb = self.resize(rgb.permute(0,3, 1, 2)[...,20:-30, 20:-20])
                     # depth_normalized = self.resize(depth_normalized.permute(0,3, 1, 2))
 
                     if self.domain_randomization:
