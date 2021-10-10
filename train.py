@@ -189,14 +189,17 @@ for epoch in range(args.epochs):
         logger.add_histogram('training_loss', training_loss, epoch_step)
         
     
-    
-    confidence, accuracy, test_loss, correct = evaluate(net, args.num_networks, testloader, logger)   
-    test_loss /= (len(testloader.dataset)/args.batch_size)
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(testloader.dataset),
-        100. * correct / len(testloader.dataset)))
-    logger.add_scalar('mean_testing_loss', test_loss, epoch_step)
-    logger.add_histogram('testing_loss', test_loss, epoch_step)
+    networks = []
+    for i in range(args.num_networks):
+        seed_all(i+1)
+        new_net = net.cuda()
+        networks.append(new_net)
+
+    accuracy, correct = evaluate(networks, testloader, logger)   
+    # test_loss /= (len(testloader.dataset)/args.batch_size)
+    print("\n Test set: Accuracy:", accuracy)
+    # logger.add_scalar('mean_testing_loss', test_loss, epoch_step)
+    # logger.add_histogram('testing_loss', test_loss, epoch_step)
     
 
     current_ckpt_accuracy = 100. * correct / len(testloader.dataset)
