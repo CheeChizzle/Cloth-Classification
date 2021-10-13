@@ -1,12 +1,12 @@
 import torch
 # from statistics import mode
 from tensorboardX import SummaryWriter
+from network import loss_func
 
-testing_step = 0
-def evaluate(networks, testloader, logger):
-    
-    testing_step = 0
+def evaluate(networks, testloader):
+
     correct = 0
+    testing_loss = 0.0
     with torch.no_grad():
         for batch in testloader:
             rgb, depth, mask, label = batch
@@ -24,14 +24,13 @@ def evaluate(networks, testloader, logger):
             pred_labels = torch.argmax(avg_prob, dim=-1) # size [num_batchsize]
 
             this_num_correct = (pred_labels == label).type(torch.int32).sum() # boolean tensor converted to integers. 1 corresponds to True and 0 to False
+
+            loss = loss_func(stacked, label)
+            testing_loss += loss.item()
+            
             correct += this_num_correct
-            print()
-            logger.add_scalar("num_correct", correct, testing_step)
-            testing_step+=1
+            
     
     accuracy = 100. * correct/len(testloader.dataset)
-
-    print("accuracy:", accuracy)
-    print("correct:", correct)
-    return accuracy, correct
+    return accuracy, correct, testing_loss
 

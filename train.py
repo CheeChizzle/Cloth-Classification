@@ -14,7 +14,10 @@ from tqdm import tqdm
 import os 
 from tensorboardX import SummaryWriter
 from evaluate import evaluate
- 
+
+# if __name__ == "__main__":
+        
+        
 # TODO: evaluate.py file, similar but takes in a checkpoint and returns confidence, accuracy, loss, (on both training and testing set)
 # TODO: visualze (in notebook) image instances of network with highest loss and image instances of network with lowest loss
 # values correspond to name of network class. key will be used to access them 
@@ -75,7 +78,7 @@ epoch_step = 0
 
 for epoch in range(args.epochs):
     # print("Experiment:", args.logdir, "Epoch #:", epoch+1)
-   
+
     # B C W H (4 dimension)
     # B V C W H (5 dimension)
 
@@ -176,7 +179,7 @@ for epoch in range(args.epochs):
 
             # print statistics every once in a while
             training_loss += loss.item()
-            logger.add_scalar("loss", training_loss, training_step)
+            logger.add_scalar("Training loss", loss.item(), training_step)
             training_step+=1
             
             # if i % 200 == 199:
@@ -185,8 +188,8 @@ for epoch in range(args.epochs):
             #     
             #     training_loss = 0.0
         print("Train set: Average training loss:", training_loss/len(trainloader))
-        logger.add_scalar('mean_training_loss', (training_loss/len(trainloader)), epoch_step)
-        logger.add_histogram('training_loss', training_loss, epoch_step)
+        logger.add_scalar('Mean training loss', (training_loss/len(trainloader)), epoch_step)
+        logger.add_histogram('Training loss', training_loss, epoch_step)
         
     
     networks = []
@@ -195,15 +198,17 @@ for epoch in range(args.epochs):
         new_net = net.cuda()
         networks.append(new_net)
 
-    accuracy, correct = evaluate(networks, testloader, logger)   
+    accuracy, correct, loss = evaluate(networks, testloader)   
     # test_loss /= (len(testloader.dataset)/args.batch_size)
-    print("\n Test set: Accuracy:", accuracy)
+    print("Train set: Average testing loss:", loss/len((testloader.dataset)/args.batch_size))
+    print("\nAccuracy:", accuracy.item())
+    print(str(correct.item()) + " correct out of 600")
     # logger.add_scalar('mean_testing_loss', test_loss, epoch_step)
     # logger.add_histogram('testing_loss', test_loss, epoch_step)
     
 
     current_ckpt_accuracy = 100. * correct / len(testloader.dataset)
-    logger.add_scalar('accuracy', current_ckpt_accuracy, epoch_step)
+    logger.add_scalar('Eval accuracy', current_ckpt_accuracy, epoch_step)
     
     if current_ckpt_accuracy > max_ckpt_accuracy:
         max_ckpt_accuracy = current_ckpt_accuracy
