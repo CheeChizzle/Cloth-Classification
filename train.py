@@ -200,7 +200,7 @@ for epoch in range(args.epochs):
 
     accuracy, correct, loss = evaluate(networks, testloader)   
     # test_loss /= (len(testloader.dataset)/args.batch_size)
-    print("Train set: Average testing loss:", loss/len((testloader.dataset)/args.batch_size))
+    print("Train set: Average testing loss:", loss/(len(testloader)/args.batch_size))
     print("\nAccuracy:", accuracy.item())
     print(str(correct.item()) + " correct out of 600")
     # logger.add_scalar('mean_testing_loss', test_loss, epoch_step)

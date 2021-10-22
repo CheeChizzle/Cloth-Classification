@@ -25,7 +25,7 @@ def evaluate(networks, testloader):
 
             this_num_correct = (pred_labels == label).type(torch.int32).sum() # boolean tensor converted to integers. 1 corresponds to True and 0 to False
 
-            loss = loss_func(stacked, label)
+            loss = loss_func(avg_prob, label)
             testing_loss += loss.item()
             
             correct += this_num_correct
