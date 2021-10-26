@@ -136,11 +136,13 @@ for epoch in range(args.epochs):
     # tensorboard --logdir <expdir> --port 6002 --host 0.0.0.0
     # localhost:6002
 
-    if args.load_ckpt is None:
-        # training
-        training_loss = 0.0
-        net.train()
-        for i, (rgb, depth, mask, label) in enumerate(tqdm(trainloader, total=len(trainloader), smoothing=0.01, dynamic_ncols=True)):
+    networks = []
+    # training
+    training_loss = 0.0
+    net.train()
+    for i, (rgb, depth, mask, label) in enumerate(tqdm(trainloader, total=len(trainloader), smoothing=0.01, dynamic_ncols=True)):
+        for seed in range(args.num_networks):
+            seed_all(seed+1)
             # multiview: B x 4 x 3 x W x H
             # B x 3 x W x H
             # singleview: B x W x H
@@ -178,30 +180,27 @@ for epoch in range(args.epochs):
             opt.step()
 
             # print statistics every once in a while
-            training_loss += loss.item()
-            logger.add_scalar("Training loss", loss.item(), training_step)
-            training_step+=1
-            
-            # if i % 200 == 199:
-            #     print('[EPOCH %d, BATCH %5d] LOSS: %.3f' %
-            #           (epoch + 1, i + 1, training_loss / 200))
-            #     
-            #     training_loss = 0.0
-        print("Train set: Average training loss:", training_loss/len(trainloader))
-        logger.add_scalar('Mean training loss', (training_loss/len(trainloader)), epoch_step)
-        logger.add_histogram('Training loss', training_loss, epoch_step)
+            # training_loss += loss.item()
+            # logger.add_scalar("Training loss", loss.item(), training_step)
+            # training_step+=1
+
+            networks.append(net)
+        
+        # if i % 200 == 199:
+        #     print('[EPOCH %d, BATCH %5d] LOSS: %.3f' %
+        #           (epoch + 1, i + 1, training_loss / 200))
+        #     
+        #     training_loss = 0.0
+    print("Train set: Average training loss:", training_loss/len(trainloader))
+    logger.add_scalar('Mean training loss', (training_loss/len(trainloader)), epoch_step)
+    logger.add_histogram('Training loss', training_loss, epoch_step)
         
     
-    networks = []
-    for i in range(args.num_networks):
-        seed_all(i+1)
-        new_net = net.cuda()
-        networks.append(new_net)
 
     accuracy, correct, loss = evaluate(networks, testloader)   
     # test_loss /= (len(testloader.dataset)/args.batch_size)
-    print("Train set: Average testing loss:", loss/(len(testloader)/args.batch_size))
-    print("\nAccuracy:", accuracy.item())
+    print("Train set: Average testing loss:", loss/(len(testloader)))
+    print("\nTesting accuracy:", accuracy.item())
     print(str(correct.item()) + " correct out of 600")
     # logger.add_scalar('mean_testing_loss', test_loss, epoch_step)
     # logger.add_histogram('testing_loss', test_loss, epoch_step)
@@ -216,7 +215,7 @@ for epoch in range(args.epochs):
         torch.save({
             'network': net.state_dict(),
             'optimizer': opt.state_dict()
-        },f'{args.logdir}/ckpt_{epoch}.pth')
+        },f'/remote_storage/{args.logdir}/ckpt_{epoch}.pth')
 
     epoch_step+=1
 
