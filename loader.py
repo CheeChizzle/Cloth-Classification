@@ -94,83 +94,73 @@ class ClothDataset(Dataset):
         # print(len(self.cache_list)) # check lenght of cache list to understand limit while using 256+ resolution
         # the keys variable is a list. each value in keys contains a tuple of a category (eg dress) and an instance (name of file that contains the actual image)
         category, instance = self.keys[idx]
-        # conditional statement to use cache. purpose is to make running faster/less expensive by resizing image only once (not each time training is run)
-        if str(idx) not in self.cache_list: 
-            # with keyword allows us to use resourse and release without using file.open() and file.close(). z is at top of file hierarchy, z[category] is next, z[category][samples][instance] is next and lastly z[category][samples][instance][depth/mask/rgb]. with the category and instance variables, we are able to access z right down to the instance and can now format the rgb, depth, and mask values inside of it.
-            with zarr.open(f'{self.zarr_file}/{category}/samples/{instance}', mode='r') as z:
+        # conditional statement to use cache. purpose is to make running faster/less expensive by resizing image only once (not each time training is run) 
+        # with keyword allows us to use resourse and release without using file.open() and file.close(). z is at top of file hierarchy, z[category] is next, z[category][samples][instance] is next and lastly z[category][samples][instance][depth/mask/rgb]. with the category and instance variables, we are able to access z right down to the instance and can now format the rgb, depth, and mask values inside of it.
+        with zarr.open(f'{self.zarr_file}/{category}/samples/{instance}', mode='r') as z:
 
-                # turning rgb matrix into a torch tensor then turning every unit in tensor to a float
-                rgb = torch.tensor(z['rgb'][:]).float() # shape: 4 x 1024 x 1024 x 3
+            # turning rgb matrix into a torch tensor then turning every unit in tensor to a float
+            rgb = torch.tensor(z['rgb'][:]).float() # shape: 4 x 1024 x 1024 x 3
 
-                rgb[(rgb == float('inf'))] = -1 # mask technique is used to get rid of infinity values
-                
-
-                # depth = torch.tensor(z['depth'][:]).float()
-                # depth[(depth == float('inf'))] = -1 #getting rid of infinity values
-
-                mask = torch.tensor(z['mask'][:]).bool() # shape: 4 x 1024 x 1024 x 1
-                mask[(mask == float('inf'))] = -1 #getting rid of infinity values
-
-                mask = torch.squeeze(mask) # shape: 4 x 1024 x 1024
-                # resize to resolution size. shape becomes: 4 x 256 x 256
-                mask = self.resize(mask)
-                
-                
-
-                # if the flag that indicates using single view is true,
-                if self.use_single_view:
-                    rgb = rgb[0,:,:,:] # select one image view in the tensor. shape becomes: 1024 x 1024 x 3
-
-                    # change the locations of the dimensions in rgb and resize to resolution size. shape becomes: 3 x 256 x 256
-                    rgb = self.resize(rgb.permute(2,0,1)[...,20:-30, 20:-20])
-
-                    if self.domain_randomization:
-                        mask = mask[0,:,:] # select one image view in the tensor. shape becomes: 256 x 256
-                        rgb = rgb/255
-                        img = self.get_random_img()
-                        # in mask, background is True and cloth is False
-                        # in order to flip order, mask = ~mask can be used
-                        # rgb and img shape: 3 x 256 x 256
-                        # mask shape: 256 x 256
-                        rgb[:, ~mask] = img[:, mask]
-
-                    
-                    
-                    
-                    # depth_normalized = self.resize(depth_normalized.permute(2,0,1))
-
-
-                    # NOTE: images should be standardized
-                    # standardization: turning dataset into a unit gaussian where mean is zero, std is one
-                    # mean(), std(), ((x - mean)/std)
-                    # compute mean and std of all rgb_normalized images in divide it as so
-                else: # if multi view is being used (use_single_view is false)
-                    
-                    # change the locations of the dimensions in rgb and resize to resolution size. shape becomes:  4 x 3 x 256 x 256
-                    rgb = self.resize(rgb.permute(0,3, 1, 2)[...,20:-30, 20:-20])
-                    # depth_normalized = self.resize(depth_normalized.permute(0,3, 1, 2))
-
-                    if self.domain_randomization:
-                        rgb = rgb/255
-                        # applying a random CFAIR-10 image as background in each image view
-                        for view in range(4):
-                            img = self.get_random_img()
-                            view_rgb = rgb[view,:,:,:] # shape: 3 x 256 x 256
-                            view_mask = mask[view,:,:] # shape: 256 x 256
-
-                            view_rgb[:, ~view_mask] = img[:, ~view_mask]
-                            rgb[view,:,:,:] = view_rgb
-                        
-                
-                # implementing standardization with mean and standard deviation variables
-                rgb_standardized = (rgb - self.rgb_mean)/self.rgb_std
-
-
-                # resized image is now added to the cache_list (dictionary) as a value with the index being its key
-                self.cache_list[str(idx)] = rgb_standardized 
-              
+            rgb[(rgb == float('inf'))] = -1 # mask technique is used to get rid of infinity values
             
-        return (self.cache_list[str(idx)]), dict(), dict(), self.classes.index(category)
+
+            # depth = torch.tensor(z['depth'][:]).float()
+            # depth[(depth == float('inf'))] = -1 #getting rid of infinity values
+
+            mask = torch.tensor(z['mask'][:]).bool() # shape: 4 x 1024 x 1024 x 1
+            mask[(mask == float('inf'))] = -1 #getting rid of infinity values
+
+            mask = torch.squeeze(mask) # shape: 4 x 1024 x 1024
+            # resize to resolution size. shape becomes: 4 x 256 x 256
+            mask = self.resize(mask)
+            
+            
+
+            # if the flag that indicates using single view is true,
+            if self.use_single_view:
+                rgb = rgb[0,:,:,:] # select one image view in the tensor. shape becomes: 1024 x 1024 x 3
+
+                # change the locations of the dimensions in rgb and resize to resolution size. shape becomes: 3 x 256 x 256
+                rgb = self.resize(rgb.permute(2,0,1)) # [...,20:-30, 20:-20]
+
+                if self.domain_randomization:
+                    mask = mask[0,:,:] # select one image view in the tensor. shape becomes: 256 x 256
+                    rgb = rgb/255
+                    img = self.get_random_img()
+                    # in mask, background is True and cloth is False
+                    # in order to flip order, mask = ~mask can be used
+                    # rgb and img shape: 3 x 256 x 256
+                    # mask shape: 256 x 256
+                    rgb[:, ~mask] = img[:, mask]
+                # depth_normalized = self.resize(depth_normalized.permute(2,0,1))
+
+
+                # NOTE: images should be standardized
+                # standardization: turning dataset into a unit gaussian where mean is zero, std is one
+                # mean(), std(), ((x - mean)/std)
+                # compute mean and std of all rgb_normalized images in divide it as so
+            else: # if multi view is being used (use_single_view is false)
+                
+                # change the locations of the dimensions in rgb and resize to resolution size. shape becomes:  4 x 3 x 256 x 256
+                rgb = self.resize(rgb.permute(0,3, 1, 2)) #[...,20:-30, 20:-20]
+                # depth_normalized = self.resize(depth_normalized.permute(0,3, 1, 2))
+
+                if self.domain_randomization:
+                    rgb = rgb/255
+                    # applying a random CFAIR-10 image as background in each image view
+                    for view in range(4):
+                        img = self.get_random_img()
+                        view_rgb = rgb[view,:,:,:] # shape: 3 x 256 x 256
+                        view_mask = mask[view,:,:] # shape: 256 x 256
+
+                        view_rgb[:, ~view_mask] = img[:, ~view_mask]
+                        rgb[view,:,:,:] = view_rgb
+                    
+            
+            # implementing standardization with mean and standard deviation variables
+            rgb_standardized = (rgb - self.rgb_mean)/self.rgb_std
+            
+        return rgb_standardized, dict(), dict(), self.classes.index(category)
         # return rgb_normalized, depth_normalized, mask, self.classes.index(category)
 
 # resources
