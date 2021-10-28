@@ -44,10 +44,9 @@ parser.add_argument('--load_ckpt',type=str,default=None) # for saving network
 parser.add_argument('--arch', choices=list(networks.keys()), default='singleviewnet')
 # add freeze resnet parameter
 parser.add_argument('--freeze_resnet', action='store_true')
-parser.add_argument('--num_networks', type=int, default=1)
 
 args = parser.parse_args()
-os.mkdir(args.logdir)
+os.mkdir("/home/chichi/cloth-classification/remote_storage/" + args.logdir)
 # setting up
 seed_all(args.seed)
 
@@ -55,7 +54,6 @@ if args.arch == "singleviewnetresnet" or args.arch == "multiviewnetresnet":
     net = networks[args.arch](freeze_layers = args.freeze_resnet).cuda()
 else:
     net = networks[args.arch]().cuda()
-
 
 opt = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
@@ -71,13 +69,33 @@ if args.load_ckpt is not None:
     net.load_state_dict(ckpt['network'])
     opt.load_state_dict(ckpt['optimizer'])
 
+# # ugly code (will delete later)
+# network_list = []
+# # best model on first single view exp
+# ckpt = torch.load("/home/chichi/cloth-classification/remote_storage/singeviewensembleexp_oct25_11pm/ckpt_2.pth") 
+# net.load_state_dict(ckpt['network'])
+# network_list.append(net)
+
+# # best model on second single view exp
+# ckpt = torch.load("/home/chichi/cloth-classification/remote_storage/singleviewensenbleexp2_oct_26_10pm/ckpt_0.pth") 
+# net.load_state_dict(ckpt['network'])
+# network_list.append(net)
+
+# # best model on third single view exp
+# ckpt = torch.load("/home/chichi/cloth-classification/remote_storage/singleviewensembleexp3_oct_27_7pm/ckpt_1.pth") 
+# net.load_state_dict(ckpt['network'])
+# network_list.append(net)
+
+# opt.load_state_dict(ckpt['optimizer'])
+
+
 start = time()
 max_ckpt_accuracy = 0
 training_step = 0
 epoch_step = 0
 
 for epoch in range(args.epochs):
-    # print("Experiment:", args.logdir, "Epoch #:", epoch+1)
+    print("Experiment:", args.logdir, "Epoch #:", epoch+1)
 
     # B C W H (4 dimension)
     # B V C W H (5 dimension)
@@ -130,74 +148,71 @@ for epoch in range(args.epochs):
 
     #TODO: Research tensorboard
     
-    logger = SummaryWriter(args.logdir)
+    logger = SummaryWriter("/home/chichi/cloth-classification/remote_storage/" + args.logdir)
     
     # ssh -L 6002:127.0.0.1:6002 chichi@128.59.23.32
     # tensorboard --logdir <expdir> --port 6002 --host 0.0.0.0
     # localhost:6002
 
-    networks = []
+    
     # training
     training_loss = 0.0
     net.train()
     for i, (rgb, depth, mask, label) in enumerate(tqdm(trainloader, total=len(trainloader), smoothing=0.01, dynamic_ncols=True)):
-        for seed in range(args.num_networks):
-            seed_all(seed+1)
-            # multiview: B x 4 x 3 x W x H
-            # B x 3 x W x H
-            # singleview: B x W x H
-            #rgb = torch.tensor(rgb).to(dtype = torch.float)
-            # rgb = rgb[0,:,:,:,:]
-            
-            # print min, max, and mean of batch of rgb images
-            opt.zero_grad()
-            output = net(rgb.cuda())
-            loss = loss_func(output, label.cuda())
-
-            loss.backward()
-
-            # research other experiences/tefchniques with resnet50
-            # Check gradient norm
-            # list of gradient norms
-            grad_norms = []
-            for p in list(filter(lambda p: p.grad is not None, net.parameters())):
-                grad_norms.append(p.grad.detach().data.norm(2).cpu())
-            # print min, mean, and max of gradient norm list
-            # if len(grad_norms) != 0:
-            # print("GRADIENT NORM STATS | Min:", min(grad_norms), "Mean:", (sum(grad_norms)/len(grad_norms)), "Max:", max(grad_norms))
-
-            logger.add_scalar('mean_gradnorm', (sum(grad_norms)/len(grad_norms)), training_step)
-            logger.add_histogram('gradnorms', grad_norms, training_step)
-            
-            # TODO: implement the following:
-            # log loss (done),  average training loss (done), average testing loss (done), total training accuracy (done), and accuracy for different cloth types at ever step
-            # log images for each step (2 images: one with the highest correct predictions and one with the least)
-            # use matplotlip or pillow/pil (python image library) to output image and display network's loss, ground truth/label, and network's prediction
-            # TODO: Run one full epoch to see if implementation is running correctly
-
-            # print(grad_norms)
-
-            opt.step()
-
-            # print statistics every once in a while
-            # training_loss += loss.item()
-            # logger.add_scalar("Training loss", loss.item(), training_step)
-            # training_step+=1
-
-            networks.append(net)
+        # multiview: B x 4 x 3 x W x H
+        # B x 3 x W x H
+        # singleview: B x W x H
+        #rgb = torch.tensor(rgb).to(dtype = torch.float)
+        # rgb = rgb[0,:,:,:,:]
         
-        # if i % 200 == 199:
-        #     print('[EPOCH %d, BATCH %5d] LOSS: %.3f' %
-        #           (epoch + 1, i + 1, training_loss / 200))
-        #     
-        #     training_loss = 0.0
+        # print min, max, and mean of batch of rgb images
+        opt.zero_grad()
+        output = net(rgb.cuda())
+        loss = loss_func(output, label.cuda())
+
+        loss.backward()
+
+        # research other experiences/tefchniques with resnet50
+        # Check gradient norm
+        # list of gradient norms
+        grad_norms = []
+        for p in list(filter(lambda p: p.grad is not None, net.parameters())):
+            grad_norms.append(p.grad.detach().data.norm(2).cpu())
+        # print min, mean, and max of gradient norm list
+        # if len(grad_norms) != 0:
+        # print("GRADIENT NORM STATS | Min:", min(grad_norms), "Mean:", (sum(grad_norms)/len(grad_norms)), "Max:", max(grad_norms))
+
+        logger.add_scalar('mean_gradnorm', (sum(grad_norms)/len(grad_norms)), training_step)
+        logger.add_histogram('gradnorms', grad_norms, training_step)
+        
+        # TODO: implement the following:
+        # log loss (done),  average training loss (done), average testing loss (done), total training accuracy (done), and accuracy for different cloth types at ever step
+        # log images for each step (2 images: one with the highest correct predictions and one with the least)
+        # use matplotlip or pillow/pil (python image library) to output image and display network's loss, ground truth/label, and network's prediction
+        # TODO: Run one full epoch to see if implementation is running correctly
+
+        # print(grad_norms)
+
+        opt.step()
+
+        # print statistics every once in a while
+        training_loss += loss.item()
+        logger.add_scalar("Training loss", loss.item(), training_step)
+        training_step+=1
+
+    
+
+    # if i % 200 == 199:
+    #     print('[EPOCH %d, BATCH %5d] LOSS: %.3f' %
+    #           (epoch + 1, i + 1, training_loss / 200))
+    #     
+    #     training_loss = 0.0
     print("Train set: Average training loss:", training_loss/len(trainloader))
     logger.add_scalar('Mean training loss', (training_loss/len(trainloader)), epoch_step)
     logger.add_histogram('Training loss', training_loss, epoch_step)
         
     
-
-    accuracy, correct, loss = evaluate(networks, testloader)   
+    accuracy, correct, loss = evaluate(net, testloader)   
     # test_loss /= (len(testloader.dataset)/args.batch_size)
     print("Train set: Average testing loss:", loss/(len(testloader)))
     print("\nTesting accuracy:", accuracy.item())
@@ -215,7 +230,7 @@ for epoch in range(args.epochs):
         torch.save({
             'network': net.state_dict(),
             'optimizer': opt.state_dict()
-        },f'/remote_storage/{args.logdir}/ckpt_{epoch}.pth')
+        },f'/home/chichi/cloth-classification/remote_storage/{args.logdir}/ckpt_{epoch}.pth')
 
     epoch_step+=1
 

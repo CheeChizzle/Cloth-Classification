@@ -139,3 +139,5 @@ dmypy.json
 *.pkl
 data/
 data/
+
+/remote_storage
