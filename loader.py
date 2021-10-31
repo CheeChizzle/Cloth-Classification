@@ -10,8 +10,8 @@ import random
 transform = transforms.Compose(
     [transforms.ToTensor()])
 
-trainset = torchvision.datasets.CIFAR10(root='./data', train = False,
-                                        download=False, transform = transform)
+trainset = torchvision.datasets.Places365(root='./data', split = "val",
+                                        small=True, download=False, transform = transform)
 
 # img, target = trainset[0]
 # print(img, target)
@@ -121,7 +121,7 @@ class ClothDataset(Dataset):
                 rgb = rgb[0,:,:,:] # select one image view in the tensor. shape becomes: 1024 x 1024 x 3
 
                 # change the locations of the dimensions in rgb and resize to resolution size. shape becomes: 3 x 256 x 256
-                rgb = self.resize(rgb.permute(2,0,1)) # [...,20:-30, 20:-20]
+                rgb = self.resize(rgb.permute(2,0,1)[...,20:-30, 20:-20]) # [...,20:-30, 20:-20]
 
                 if self.domain_randomization:
                     mask = mask[0,:,:] # select one image view in the tensor. shape becomes: 256 x 256

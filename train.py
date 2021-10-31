@@ -71,18 +71,18 @@ if args.load_ckpt is not None:
 
 # # ugly code (will delete later)
 # network_list = []
-# # best model on first single view exp
-# ckpt = torch.load("/home/chichi/cloth-classification/remote_storage/singeviewensembleexp_oct25_11pm/ckpt_2.pth") 
+# # best model on third single view exp (45th epoch with 86.1%)
+# ckpt = torch.load("/home/chichi/cloth-classification/remote_storage/multiviewresnet_finalexp3_oct29_7am/ckpt_44.pth") 
 # net.load_state_dict(ckpt['network'])
 # network_list.append(net)
 
-# # best model on second single view exp
-# ckpt = torch.load("/home/chichi/cloth-classification/remote_storage/singleviewensenbleexp2_oct_26_10pm/ckpt_0.pth") 
+# # best model on second multi view exp (44th epoch with 86.5%!!)
+# ckpt = torch.load("/home/chichi/cloth-classification/remote_storage/multiviewresnet_finalexp2_oct28_5pm/ckpt_43.pth") 
 # net.load_state_dict(ckpt['network'])
 # network_list.append(net)
 
-# # best model on third single view exp
-# ckpt = torch.load("/home/chichi/cloth-classification/remote_storage/singleviewensembleexp3_oct_27_7pm/ckpt_1.pth") 
+# # best model on first multi view exp (49th epoch with 89.5%!!)
+# ckpt = torch.load("/home/chichi/cloth-classification/remote_storage/multiviewresnet_finalexp_oct28_1am/ckpt_48.pth") 
 # net.load_state_dict(ckpt['network'])
 # network_list.append(net)
 
@@ -200,7 +200,7 @@ for epoch in range(args.epochs):
         logger.add_scalar("Training loss", loss.item(), training_step)
         training_step+=1
 
-    
+
 
     # if i % 200 == 199:
     #     print('[EPOCH %d, BATCH %5d] LOSS: %.3f' %
@@ -211,7 +211,7 @@ for epoch in range(args.epochs):
     logger.add_scalar('Mean training loss', (training_loss/len(trainloader)), epoch_step)
     logger.add_histogram('Training loss', training_loss, epoch_step)
         
-    
+
     accuracy, correct, loss = evaluate(net, testloader)   
     # test_loss /= (len(testloader.dataset)/args.batch_size)
     print("Train set: Average testing loss:", loss/(len(testloader)))
