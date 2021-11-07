@@ -141,3 +141,5 @@ data/
 data/
 
 /remote_storage
+
+*.DS_Store
