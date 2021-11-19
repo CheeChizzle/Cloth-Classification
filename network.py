@@ -129,6 +129,7 @@ class MultiViewResNet(nn.Module):
         third_view_score = self.net3(third_view)
         fourth_view_score = self.net4(fourth_view)
 
+
         score = first_view_score + second_view_score + third_view_score + fourth_view_score
 
         # scores.shape  == B K

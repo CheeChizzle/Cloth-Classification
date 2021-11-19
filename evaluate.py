@@ -22,7 +22,6 @@ def evaluate(net, testloader):
             # avg_prob = torch.mean(stacked, dim=0) # size [num_batchsize, num_classes]
 
             pred_labels = torch.argmax(output, dim=-1) # size [num_batchsize]
-
             this_num_correct = (pred_labels == label).type(torch.int32).sum() # boolean tensor converted to integers. 1 corresponds to True and 0 to False
 
             loss = loss_func(output, label)

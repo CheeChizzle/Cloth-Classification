@@ -15,7 +15,6 @@ trainset = torchvision.datasets.Places365(root='./data', split = "val",
 
 # img, target = trainset[0]
 # print(img, target)
-# exit()
 class ClothDataset(Dataset):
     classes = ['Dress', 'Jumpsuit', 'Skirt', 'Top', 'Trousers', 'Tshirt'] # list of classes/labels (y value, ground truth)
     def __init__(self, resolution, zarr_file='garmentnets_images.zarr', keys='train.pkl', use_single_view=False, domain_randomization = False): # constructor which allows paramters to be passed through when an instance of the class is made
